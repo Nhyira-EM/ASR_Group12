@@ -2,18 +2,17 @@ import streamlit as st
 from transformers import pipeline
 import torchaudio
 from torchaudio.transforms import Resample
+import sounddevice as sd
+import wave
 import tempfile
 import os
-from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, ClientSettings
-import numpy as np
-import av
 
 # Initialize the Whisper pipeline
 st.title("Whisper Twi Speech Recognition")
 st.markdown("### Realtime demo for Twi speech recognition using a fine-tuned Whisper model.")
 
 # Load your Whisper model
-@st.cache_resource
+@st.cache_resource  # Cache the pipeline for better performance
 def load_model():
     return pipeline(task="automatic-speech-recognition", model="Ibaahjnr/Twi_model_v1")
 
@@ -27,81 +26,80 @@ def resample_audio(file_path, target_sample_rate=16000):
         waveform = resampler(waveform)
     return waveform, target_sample_rate
 
-# Class to handle audio recording
-class AudioProcessor(AudioProcessorBase):
-    def __init__(self):
-        self.frames = []
+# Function to record audio
+def record_audio(duration=5, sample_rate=16000, channels=1):
+    st.info("Recording... Speak now!")
+    audio_data = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=channels, dtype='int16')
+    sd.wait()  # Wait until the recording is complete
+    st.success("Recording finished!")
+    return audio_data, sample_rate
 
-    def recv_audio(self, frame: av.AudioFrame) -> None:
-        self.frames.append(frame.to_ndarray().flatten())
+# Save recorded audio to a temporary file
+def save_audio_to_file(audio_data, sample_rate, file_path):
+    with wave.open(file_path, "wb") as wf:
+        wf.setnchannels(1)  # Mono
+        wf.setsampwidth(2)  # 2 bytes per sample
+        wf.setframerate(sample_rate)
+        wf.writeframes(audio_data.tobytes())
 
-    def save_audio(self, filepath: str):
-        audio = np.concatenate(self.frames, axis=0).astype(np.float32)
-        sample_rate = 48000  # Default sample rate from WebRTC
-        torchaudio.save(filepath, torch.tensor([audio]), sample_rate)
-        self.frames = []  # Clear frames after saving
+# File uploader and recorder options
+st.markdown("#### Choose an input method:")
+option = st.radio("Select an input method:", ["Upload Audio File", "Record Audio"])
 
-# File uploader for audio input
-uploaded_audio = st.file_uploader("Upload an audio file:", type=["wav", "mp3", "ogg", "flac"])
-
-# Transcription button for uploaded audio
-if uploaded_audio is not None:
-    # Save the uploaded file to a temporary directory
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-        temp_file.write(uploaded_audio.read())
-        temp_file_path = temp_file.name
-
-    # Resample the audio to 16 kHz
-    try:
-        waveform, sample_rate = resample_audio(temp_file_path)
-        resampled_path = temp_file_path.replace(".wav", "_resampled.wav")
-        torchaudio.save(resampled_path, waveform, sample_rate)
-
-        st.audio(resampled_path, format="audio/wav")
-
-        with st.spinner("Transcribing audio..."):
-            text = pipe(resampled_path)["text"]
-
-        st.write("### Transcription:")
-        st.write(text)
-
-        os.remove(temp_file_path)
-        os.remove(resampled_path)
-    except Exception as e:
-        st.error(f"Error processing the audio: {e}")
-
-# Audio recording section
-st.markdown("### Record Audio")
-webrtc_ctx = webrtc_streamer(
-    key="audio-recorder",
-    client_settings=ClientSettings(
-        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
-        media_stream_constraints={"audio": True, "video": False},
-    ),
-    audio_processor_factory=AudioProcessor,
-)
-
-if webrtc_ctx and webrtc_ctx.audio_processor:
-    audio_processor = webrtc_ctx.audio_processor
-    if st.button("Save Recording"):
+if option == "Upload Audio File":
+    uploaded_audio = st.file_uploader("Upload an audio file:", type=["wav", "mp3", "ogg", "flac"])
+    if uploaded_audio is not None:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+            temp_file.write(uploaded_audio.read())
             temp_file_path = temp_file.name
-        audio_processor.save_audio(temp_file_path)
 
-        # Resample the recorded audio to 16 kHz
+        # Resample the audio to 16 kHz
         try:
             waveform, sample_rate = resample_audio(temp_file_path)
             resampled_path = temp_file_path.replace(".wav", "_resampled.wav")
             torchaudio.save(resampled_path, waveform, sample_rate)
 
+            # Display the resampled audio
             st.audio(resampled_path, format="audio/wav")
 
-            with st.spinner("Transcribing recorded audio..."):
+            # Transcribe the audio
+            with st.spinner("Transcribing audio..."):
                 text = pipe(resampled_path)["text"]
 
             st.write("### Transcription:")
             st.write(text)
 
+            # Clean up temporary files
+            os.remove(temp_file_path)
+            os.remove(resampled_path)
+        except Exception as e:
+            st.error(f"Error processing the audio: {e}")
+
+elif option == "Record Audio":
+    duration = st.slider("Select recording duration (seconds):", min_value=1, max_value=10, value=5)
+    if st.button("Record"):
+        try:
+            audio_data, sample_rate = record_audio(duration=duration)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+                save_audio_to_file(audio_data, sample_rate, temp_file.name)
+                temp_file_path = temp_file.name
+
+            # Resample the audio to 16 kHz
+            waveform, sample_rate = resample_audio(temp_file_path)
+            resampled_path = temp_file_path.replace(".wav", "_resampled.wav")
+            torchaudio.save(resampled_path, waveform, sample_rate)
+
+            # Display the resampled audio
+            st.audio(resampled_path, format="audio/wav")
+
+            # Transcribe the audio
+            with st.spinner("Transcribing audio..."):
+                text = pipe(resampled_path)["text"]
+
+            st.write("### Transcription:")
+            st.write(text)
+
+            # Clean up temporary files
             os.remove(temp_file_path)
             os.remove(resampled_path)
         except Exception as e:
