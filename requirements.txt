@@ -1,6 +1,5 @@
 streamlit
 transformers
-torch
 torchaudio
 pydub
-tempfile
+ffmpeg
