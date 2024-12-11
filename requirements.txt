@@ -2,3 +2,5 @@ streamlit
 transformers
 torchaudio
 librosa
+numpy
+soundfile
