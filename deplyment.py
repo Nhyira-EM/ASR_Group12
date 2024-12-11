@@ -1,7 +1,6 @@
 import streamlit as st
 from transformers import pipeline
-import torchaudio
-from torchaudio.transforms import Resample
+from pydub import AudioSegment
 import tempfile
 import os
 
@@ -16,13 +15,13 @@ def load_model():
 
 pipe = load_model()
 
-# Function to resample audio to 16 kHz
+# Function to resample audio to 16 kHz using pydub
 def resample_audio(file_path, target_sample_rate=16000):
-    waveform, sample_rate = torchaudio.load(file_path)
-    if sample_rate != target_sample_rate:
-        resampler = Resample(orig_freq=sample_rate, new_freq=target_sample_rate)
-        waveform = resampler(waveform)
-    return waveform, target_sample_rate
+    audio = AudioSegment.from_wav(file_path)
+    audio = audio.set_frame_rate(target_sample_rate)
+    resampled_path = file_path.replace(".wav", "_resampled.wav")
+    audio.export(resampled_path, format="wav")
+    return resampled_path
 
 # File uploader for audio input
 uploaded_audio = st.file_uploader("Upload an audio file:", type=["wav", "mp3", "ogg", "flac"])
@@ -36,11 +35,8 @@ if uploaded_audio is not None:
 
     # Resample the audio to 16 kHz
     try:
-        waveform, sample_rate = resample_audio(temp_file_path)
-        # Save the resampled audio back to a temporary file
-        resampled_path = temp_file_path.replace(".wav", "_resampled.wav")
-        torchaudio.save(resampled_path, waveform, sample_rate)
-
+        resampled_path = resample_audio(temp_file_path)
+        
         # Display the resampled audio
         st.audio(resampled_path, format="audio/wav")
 
