@@ -1,6 +1,6 @@
 import streamlit as st
 from transformers import pipeline
-from pydub import AudioSegment
+import librosa
 import tempfile
 import os
 
@@ -15,13 +15,13 @@ def load_model():
 
 pipe = load_model()
 
-# Function to resample audio to 16 kHz using pydub
+# Function to resample audio to 16 kHz using librosa
 def resample_audio(file_path, target_sample_rate=16000):
-    audio = AudioSegment.from_wav(file_path)
-    audio = audio.set_frame_rate(target_sample_rate)
-    resampled_path = file_path.replace(".wav", "_resampled.wav")
-    audio.export(resampled_path, format="wav")
-    return resampled_path
+    # Load the audio file with librosa (it automatically resamples to the target sample rate)
+    waveform, sample_rate = librosa.load(file_path, sr=None)  # `sr=None` ensures original sample rate is preserved
+    if sample_rate != target_sample_rate:
+        waveform = librosa.resample(waveform, orig_sr=sample_rate, target_sr=target_sample_rate)
+    return waveform, target_sample_rate
 
 # File uploader for audio input
 uploaded_audio = st.file_uploader("Upload an audio file:", type=["wav", "mp3", "ogg", "flac"])
@@ -35,8 +35,12 @@ if uploaded_audio is not None:
 
     # Resample the audio to 16 kHz
     try:
-        resampled_path = resample_audio(temp_file_path)
+        waveform, sample_rate = resample_audio(temp_file_path)
         
+        # Save the resampled audio back to a temporary file
+        resampled_path = temp_file_path.replace(".wav", "_resampled.wav")
+        librosa.output.write_wav(resampled_path, waveform, sample_rate)
+
         # Display the resampled audio
         st.audio(resampled_path, format="audio/wav")
 
