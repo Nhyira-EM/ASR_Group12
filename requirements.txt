@@ -3,5 +3,4 @@ transformers
 torch
 torchaudio
 numpy
-sounddevice
-wave
+streamlit_webrtc
