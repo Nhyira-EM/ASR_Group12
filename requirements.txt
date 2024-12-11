@@ -2,5 +2,3 @@ streamlit
 transformers
 torch
 torchaudio
-numpy
-streamlit_webrtc
