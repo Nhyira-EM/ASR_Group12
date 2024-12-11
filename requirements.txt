@@ -1,0 +1,4 @@
+streamlit==1.23.0
+transformers==4.34.0
+torch==2.2.0
+torchaudio==2.2.0
