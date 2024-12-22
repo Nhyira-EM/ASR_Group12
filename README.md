@@ -2,7 +2,7 @@
 A speech to text model that employs a fine-tuned Whisper model as well as a fine tuned BERT model
 
 # Authors
-- Issac Baah
+- Issac Baah(@isbaah)
 - Emmanuel Nhyira Freduah-Agyemang
 - Paa Kwesi Thompson Jnr.
 
