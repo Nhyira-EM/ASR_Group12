@@ -3,8 +3,8 @@ A speech to text model that employs a fine-tuned Whisper model as well as a fine
 
 # Authors
 - Issac Baah(https://github.com/isbaah)
-- Emmanuel Nhyira Freduah-Agyemang
-- Paa Kwesi Thompson Jnr.
+- Emmanuel Nhyira Freduah-Agyemang(https://github.com/Nhyira-EM)
+- Paa Kwesi Thompson Jnr.(https://github.com/PKThompson)
 
 # Summary
 This project aimed to develop a speech recognition system for Asante Twi, a native Ghanaian language, using OpenAI Whisper fine-tuned on Asante Twi datasets. Subsequently, we attempted to use a BERT-based language model to refine the transcriptions through grammar error correction. The main objectives were to train an automatic speech recognition (ASR) model, evaluate its performance using held-out and newly compiled test datasets, and deploy the model with an accessible API.
